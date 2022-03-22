@@ -1,5 +1,5 @@
 import shutil
-
+import logging
 import cv2
 import os, sys, gc
 import time
@@ -14,7 +14,7 @@ import math
 import pickle
 from matplotlib import pyplot as plt
 
-log_level = 'DEBUG'
+logging.basicConfig( level=logging.DEBUG)
 
 mp_holistic = mp.solutions.holistic
 
@@ -208,26 +208,51 @@ def dump_pose_for_dataset(
     print(f"Pose data successfully saved to: {save_folder}")
 
 
+class Dataset:
+    # init method or constructor
+    def __init__(self, name, base_path,save_path,use_videos,color_depth_same_folder,folder_order):
+        self.name = name
+        self.base_path = base_path
+        self.save_path = save_path
+        self.use_videos = use_videos
+        self.color_depth_same_folder = color_depth_same_folder
+        self.folder_order = folder_order
+
+
+
 if __name__ == "__main__":
-    # gen_keypoints_for_video("/home/gokulnc/data-disk/datasets/Chinese/CSL/word/color/000/P01_01_00_0._color.mp4", "sample.pkl")
-    n_cores = multiprocessing.cpu_count() // 2
+    n_cores = multiprocessing.cpu_count()
+    logging.info('n_cores is: ' + format(n_cores))
     #n_cores  = 1
-    DIR = "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/"
-    SAVE_DIR = "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/"
+    dataset = Dataset(
+        name = 'CSL',
+        base_path= "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/",
+        save_path= "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/",
+        use_videos = False,
+        color_depth_same_folder= False,
+        folder_order = 'class_sign'
+    )
+
 
     #shutil.rmtree(SAVE_DIR,ignore_errors=True)
-    os.makedirs(SAVE_DIR, exist_ok=True)
+    os.makedirs(dataset.save_path, exist_ok=True)
 
 
     file_paths = []
     save_paths = []
-    for cls in sorted(os.listdir(DIR)):
-        os.makedirs(os.path.join(SAVE_DIR, cls), exist_ok=True)
-        for file in sorted(os.listdir(DIR+cls)):
-            #if "color" in file:
-            if not os.path.isfile(os.path.join(SAVE_DIR, cls, file.replace(".avi", "").replace("_color","")) + '.pkl'):
-                file_paths.append(os.path.join(DIR, cls, file))
-                save_paths.append(os.path.join(SAVE_DIR, cls, file.replace(".avi", "").replace("_color","")))
+    if dataset.folder_order in 'class_sign':
+        for cls in sorted(os.listdir(dataset.base_path)):
+            os.makedirs(os.path.join(dataset.save_path, cls), exist_ok=True)
+            for file in sorted(os.listdir(dataset.base_path+cls)):
+                #if "color" in file:
+                if not os.path.isfile(os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color","")) + '.pkl'):
+                    file_paths.append(os.path.join(dataset.base_path, cls, file))
+                    save_paths.append(os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color","")))
+    else:
+        logging.exception('Unsupported dataset folder order')
+
+
+
 
     Parallel(n_jobs=n_cores, backend="loky")(
         delayed(gen_keypoints_for_video)(path, save_path, use_frames=True)
