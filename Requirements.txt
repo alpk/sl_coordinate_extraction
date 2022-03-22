@@ -1,4 +1,4 @@
-opencv-python~=4.4.0.46
+opencv-python-headless
 mediapipe~=0.8.9.1
 numpy
 joblib
