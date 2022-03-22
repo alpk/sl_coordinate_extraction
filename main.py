@@ -1,20 +1,21 @@
-import shutil
 import logging
-import cv2
-import os, sys, gc
-import time
-import numpy as np
-import mediapipe as mp
-from tqdm.auto import tqdm
+import gc
+import logging
+import math
 import multiprocessing
+import os
+import pickle
+import time
+from glob import glob
+
+import cv2
+import mediapipe as mp
+import numpy as np
 from joblib import Parallel, delayed
 from natsort import natsorted
-from glob import glob
-import math
-import pickle
-from matplotlib import pyplot as plt
+from tqdm.auto import tqdm
 
-logging.basicConfig( level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 mp_holistic = mp.solutions.holistic
 
@@ -59,7 +60,7 @@ def process_other_landmarks(component, n_points):
 
 
 def get_holistic_keypoints(
-    frames
+        frames
 ):
     """
     For videos, it's optimal to create with `static_image_mode=False` for each video.
@@ -70,7 +71,7 @@ def get_holistic_keypoints(
     confs = []
 
     for f in range(frames.shape[0]):
-        frame = frames[f,:,:,:]
+        frame = frames[f, :, :, :]
         results = holistic.process(frame)
         body_data, body_conf = process_body_landmarks(
             results.pose_landmarks, N_BODY_LANDMARKS
@@ -110,7 +111,6 @@ def get_holistic_keypoints(
 
 
 def gen_keypoints_for_frames(frames, save_path):
-
     pose_kps, pose_confs = get_holistic_keypoints(frames)
     body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)
 
@@ -132,7 +132,7 @@ def load_frames_from_video(video_path):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         # img = cv2.resize(img, (640, 480))
         frames.append(img)
-    if np.sum(frames[0])== 0:
+    if np.sum(frames[0]) == 0:
         del frames[0]
     vidcap.release()
     # cv2.destroyAllWindows()
@@ -156,8 +156,7 @@ def load_frames_from_folder(frames_folder, patterns=["*.jpg"]):
     return np.asarray(frames)
 
 
-def gen_keypoints_for_video(video_path, save_path, use_frames = False):
-
+def gen_keypoints_for_video(video_path, save_path, use_frames=False):
     if use_frames:
         frames = load_frames_from_folder(video_path)
     else:
@@ -185,7 +184,7 @@ def generate_pose(dataset, save_folder, worker_index, num_workers, counter):
 
 
 def dump_pose_for_dataset(
-    dataset, save_folder, num_workers=multiprocessing.cpu_count()
+        dataset, save_folder, num_workers=multiprocessing.cpu_count()
 ):
     os.makedirs(save_folder, exist_ok=True)
     processes = []
@@ -210,7 +209,7 @@ def dump_pose_for_dataset(
 
 class Dataset:
     # init method or constructor
-    def __init__(self, name, base_path,save_path,use_videos,color_depth_same_folder,folder_order):
+    def __init__(self, name, base_path, save_path, use_videos, color_depth_same_folder, folder_order):
         self.name = name
         self.base_path = base_path
         self.save_path = save_path
@@ -219,40 +218,36 @@ class Dataset:
         self.folder_order = folder_order
 
 
-
 if __name__ == "__main__":
     n_cores = multiprocessing.cpu_count()
     logging.info('n_cores is: ' + format(n_cores))
-    #n_cores  = 1
+    # n_cores  = 1
     dataset = Dataset(
-        name = 'CSL',
-        base_path= "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/",
-        save_path= "/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/",
-        use_videos = False,
-        color_depth_same_folder= False,
-        folder_order = 'class_sign'
+        name='CSL',
+        base_path="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/",
+        save_path="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/",
+        use_videos=False,
+        color_depth_same_folder=False,
+        folder_order='class_sign'
     )
 
-
-    #shutil.rmtree(SAVE_DIR,ignore_errors=True)
+    # shutil.rmtree(SAVE_DIR,ignore_errors=True)
     os.makedirs(dataset.save_path, exist_ok=True)
-
 
     file_paths = []
     save_paths = []
     if dataset.folder_order in 'class_sign':
         for cls in sorted(os.listdir(dataset.base_path)):
             os.makedirs(os.path.join(dataset.save_path, cls), exist_ok=True)
-            for file in sorted(os.listdir(dataset.base_path+cls)):
-                #if "color" in file:
-                if not os.path.isfile(os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color","")) + '.pkl'):
+            for file in sorted(os.listdir(dataset.base_path + cls)):
+                # if "color" in file:
+                if not os.path.isfile(
+                        os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
                     file_paths.append(os.path.join(dataset.base_path, cls, file))
-                    save_paths.append(os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color","")))
+                    save_paths.append(
+                        os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color", "")))
     else:
         logging.exception('Unsupported dataset folder order')
-
-
-
 
     Parallel(n_jobs=n_cores, backend="loky")(
         delayed(gen_keypoints_for_video)(path, save_path, use_frames=True)
