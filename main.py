@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import pickle
 import time
+import argparse
 from glob import glob
 
 import cv2
@@ -19,9 +20,17 @@ logging.basicConfig(level=logging.DEBUG)
 
 mp_holistic = mp.solutions.holistic
 
-N_FACE_LANDMARKS = 468
-N_BODY_LANDMARKS = 33
-N_HAND_LANDMARKS = 21
+parser = argparse.ArgumentParser(description='Process a dataset to extract coordinates.')
+parser.add_argument('-dataset_name',  type=str, default='CSL')
+parser.add_argument('-base_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/")
+parser.add_argument('-save_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/")
+parser.add_argument('-use_videos',  type=bool, default=False)
+parser.add_argument('-color_depth_same_folder',  type=bool, default=False)
+parser.add_argument('-folder_order',  type=str, default='class_sign')
+parser.add_argument('-N_FACE_LANDMARKS',  type=int, default=468)
+parser.add_argument('-N_BODY_LANDMARKS',  type=int, default=33)
+parser.add_argument('-N_HAND_LANDMARKS',  type=int, default=21)
+parser.add_argument('-number_of_cores',  type=int, default=multiprocessing.cpu_count())
 
 
 class Counter(object):
@@ -60,7 +69,7 @@ def process_other_landmarks(component, n_points):
 
 
 def get_holistic_keypoints(
-        frames
+        frames,args
 ):
     """
     For videos, it's optimal to create with `static_image_mode=False` for each video.
@@ -74,7 +83,7 @@ def get_holistic_keypoints(
         frame = frames[f, :, :, :]
         results = holistic.process(frame)
         body_data, body_conf = process_body_landmarks(
-            results.pose_landmarks, N_BODY_LANDMARKS
+            results.pose_landmarks, args.N_BODY_LANDMARKS
         )
         """
         face_data, face_conf = process_other_landmarks(
@@ -82,10 +91,10 @@ def get_holistic_keypoints(
         )
         """
         lh_data, lh_conf = process_other_landmarks(
-            results.left_hand_landmarks, N_HAND_LANDMARKS
+            results.left_hand_landmarks, args.N_HAND_LANDMARKS
         )
         rh_data, rh_conf = process_other_landmarks(
-            results.right_hand_landmarks, N_HAND_LANDMARKS
+            results.right_hand_landmarks, args.N_HAND_LANDMARKS
         )
         """
         plt.imshow(frame)
@@ -110,8 +119,8 @@ def get_holistic_keypoints(
     return keypoints, confs
 
 
-def gen_keypoints_for_frames(frames, save_path):
-    pose_kps, pose_confs = get_holistic_keypoints(frames)
+def gen_keypoints_for_frames(frames, save_path,args):
+    pose_kps, pose_confs = get_holistic_keypoints(frames,args)
     body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)
 
     confs = np.concatenate([pose_confs[:, :33], pose_confs[:, 501:]], axis=1)
@@ -156,20 +165,17 @@ def load_frames_from_folder(frames_folder, patterns=["*.jpg"]):
     return np.asarray(frames)
 
 
-def gen_keypoints_for_video(video_path, save_path, use_frames=False):
-    if use_frames:
-        frames = load_frames_from_folder(video_path)
-    else:
-        if not os.path.isfile(video_path):
-            print("SKIPPING MISSING FILE:", video_path)
-            return
-        frames = load_frames_from_video(video_path)
-    gen_keypoints_for_frames(frames, save_path)
+def gen_keypoints_for_video(video_path, save_path, args):
+    if not os.path.isfile(video_path):
+        print("SKIPPING MISSING FILE:", video_path)
+        return
+    frames = load_frames_from_video(video_path)
+    gen_keypoints_for_frames(frames, save_path, args)
 
 
-def gen_keypoints_for_folder(folder, save_path, file_patterns):
+def gen_keypoints_for_folder(folder, save_path, file_patterns, args):
     frames = load_frames_from_folder(folder, file_patterns)
-    gen_keypoints_for_frames(frames, save_path)
+    gen_keypoints_for_frames(frames, save_path, args)
 
 
 def generate_pose(dataset, save_folder, worker_index, num_workers, counter):
@@ -207,49 +213,40 @@ def dump_pose_for_dataset(
     print(f"Pose data successfully saved to: {save_folder}")
 
 
-class Dataset:
-    # init method or constructor
-    def __init__(self, name, base_path, save_path, use_videos, color_depth_same_folder, folder_order):
-        self.name = name
-        self.base_path = base_path
-        self.save_path = save_path
-        self.use_videos = use_videos
-        self.color_depth_same_folder = color_depth_same_folder
-        self.folder_order = folder_order
+
 
 
 if __name__ == "__main__":
-    n_cores = multiprocessing.cpu_count()
-    logging.info('n_cores is: ' + format(n_cores))
-    # n_cores  = 1
-    dataset = Dataset(
-        name='CSL',
-        base_path="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/",
-        save_path="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/",
-        use_videos=False,
-        color_depth_same_folder=False,
-        folder_order='class_sign'
-    )
+    args = parser.parse_args()
+    logging.info('n_cores is: ' + format(args.number_of_cores))
+
+
 
     # shutil.rmtree(SAVE_DIR,ignore_errors=True)
-    os.makedirs(dataset.save_path, exist_ok=True)
+    os.makedirs(args.save_path, exist_ok=True)
 
     file_paths = []
     save_paths = []
-    if dataset.folder_order in 'class_sign':
-        for cls in sorted(os.listdir(dataset.base_path)):
-            os.makedirs(os.path.join(dataset.save_path, cls), exist_ok=True)
-            for file in sorted(os.listdir(dataset.base_path + cls)):
+    if args.folder_order in 'class_sign':
+        for cls in sorted(os.listdir(args.base_path)):
+            os.makedirs(os.path.join(args.save_path, cls), exist_ok=True)
+            for file in sorted(os.listdir(args.base_path + cls)):
                 # if "color" in file:
                 if not os.path.isfile(
-                        os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
-                    file_paths.append(os.path.join(dataset.base_path, cls, file))
+                        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
+                    file_paths.append(os.path.join(args.base_path, cls, file))
                     save_paths.append(
-                        os.path.join(dataset.save_path, cls, file.replace(".avi", "").replace("_color", "")))
+                        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")))
     else:
         logging.exception('Unsupported dataset folder order')
 
-    Parallel(n_jobs=n_cores, backend="loky")(
-        delayed(gen_keypoints_for_video)(path, save_path, use_frames=True)
-        for path, save_path in tqdm(zip(file_paths, save_paths))
-    )
+    if args.use_videos:
+        Parallel(n_jobs=args.number_of_cores, backend="loky")(
+            delayed(gen_keypoints_for_video)(path, save_path, args)
+            for path, save_path in tqdm(zip(file_paths, save_paths))
+        )
+    else:
+        Parallel(n_jobs=args.number_of_cores, backend="loky")(
+            delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg","*.png"], args)
+            for path, save_path in tqdm(zip(file_paths, save_paths))
+        )
