@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#SBATCH --partition=long
 #SBATCH -N 1
 #SBATCH -n 10
 # #SBATCH --mem=64000M

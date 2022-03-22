@@ -7,6 +7,7 @@ import pickle
 import time
 import argparse
 import shutil
+import sys
 from glob import glob
 
 import cv2
@@ -245,10 +246,10 @@ if __name__ == "__main__":
     if args.use_videos:
         Parallel(n_jobs=args.number_of_cores, backend="loky")(
             delayed(gen_keypoints_for_video)(path, save_path, args)
-            for path, save_path in tqdm(zip(file_paths, save_paths))
+            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout)
         )
     else:
         Parallel(n_jobs=args.number_of_cores, backend="loky")(
             delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg","*.png"], args)
-            for path, save_path in tqdm(zip(file_paths, save_paths))
+            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout)
         )
