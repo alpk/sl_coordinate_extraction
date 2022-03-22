@@ -1,4 +1,3 @@
-import logging
 import gc
 import logging
 import math
@@ -7,6 +6,7 @@ import os
 import pickle
 import time
 import argparse
+import shutil
 from glob import glob
 
 import cv2
@@ -16,22 +16,24 @@ from joblib import Parallel, delayed
 from natsort import natsorted
 from tqdm.auto import tqdm
 
+# Initial script forked from https://github.com/AI4Bharat/OpenHands/blob/main/scripts/mediapipe_extract.py
+
 logging.basicConfig(level=logging.DEBUG)
 
 mp_holistic = mp.solutions.holistic
 
 parser = argparse.ArgumentParser(description='Process a dataset to extract coordinates.')
-parser.add_argument('-dataset_name',  type=str, default='CSL')
-parser.add_argument('-base_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/")
-parser.add_argument('-save_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/")
-parser.add_argument('-use_videos',  type=bool, default=False)
-parser.add_argument('-color_depth_same_folder',  type=bool, default=False)
-parser.add_argument('-folder_order',  type=str, default='class_sign')
-parser.add_argument('-N_FACE_LANDMARKS',  type=int, default=468)
-parser.add_argument('-N_BODY_LANDMARKS',  type=int, default=33)
-parser.add_argument('-N_HAND_LANDMARKS',  type=int, default=21)
-parser.add_argument('-number_of_cores',  type=int, default=multiprocessing.cpu_count())
-
+parser.add_argument('--dataset_name',  type=str, default='CSL')
+parser.add_argument('--base_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/")
+parser.add_argument('--save_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/")
+parser.add_argument('--use_videos',  type=bool, default=False)
+parser.add_argument('--color_depth_same_folder',  type=bool, default=False)
+parser.add_argument('--folder_order',  type=str, default='class_sign')
+parser.add_argument('--N_FACE_LANDMARKS',  type=int, default=468)
+parser.add_argument('--N_BODY_LANDMARKS',  type=int, default=33)
+parser.add_argument('--N_HAND_LANDMARKS',  type=int, default=21)
+parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count())
+parser.add_argument('--clear_dir',  type=bool, default=False)
 
 class Counter(object):
     # https://stackoverflow.com/a/47562583/
@@ -221,8 +223,8 @@ if __name__ == "__main__":
     logging.info('n_cores is: ' + format(args.number_of_cores))
 
 
-
-    # shutil.rmtree(SAVE_DIR,ignore_errors=True)
+    if args.clear_dir:
+        shutil.rmtree(args.save_path,ignore_errors=True)
     os.makedirs(args.save_path, exist_ok=True)
 
     file_paths = []
