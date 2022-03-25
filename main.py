@@ -8,6 +8,7 @@ import time
 import argparse
 import shutil
 import sys
+import random
 from glob import glob
 
 import cv2
@@ -16,6 +17,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from natsort import natsorted
 from tqdm.auto import tqdm
+from multiprocessing import Pool, cpu_count
 
 # Initial script forked from https://github.com/AI4Bharat/OpenHands/blob/main/scripts/mediapipe_extract.py
 
@@ -231,7 +233,11 @@ if __name__ == "__main__":
     file_paths = []
     save_paths = []
     if args.folder_order in 'class_sign':
-        for cls in sorted(os.listdir(args.base_path)):
+
+        rand_list = os.listdir(args.base_path)
+        random.shuffle(rand_list)
+
+        for cls in rand_list:
             os.makedirs(os.path.join(args.save_path, cls), exist_ok=True)
             for file in sorted(os.listdir(args.base_path + cls)):
                 # if "color" in file:
@@ -249,7 +255,11 @@ if __name__ == "__main__":
             for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout)
         )
     else:
-        Parallel(n_jobs=args.number_of_cores, backend="loky")(
-            delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg","*.png"], args)
-            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout)
-        )
+        if args.number_of_cores > 1:
+            Parallel(n_jobs=args.number_of_cores, backend="loky")(
+                delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg", "*.png"], args)
+                for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout))
+        else:
+            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout):
+                gen_keypoints_for_folder(path, save_path, ["*.jpg","*.png"], args)
+
