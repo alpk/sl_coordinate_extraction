@@ -239,7 +239,10 @@ if __name__ == "__main__":
 
         for cls in rand_list:
             os.makedirs(os.path.join(args.save_path, cls), exist_ok=True)
-            for file in sorted(os.listdir(args.base_path + cls)):
+
+            file_list = os.listdir(args.base_path + cls)
+            random.shuffle(file_list)
+            for file in file_list:
                 # if "color" in file:
                 if not os.path.isfile(
                         os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
