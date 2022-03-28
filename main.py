@@ -35,7 +35,7 @@ parser.add_argument('--folder_order',  type=str, default='class_sign')
 parser.add_argument('--N_FACE_LANDMARKS',  type=int, default=468)
 parser.add_argument('--N_BODY_LANDMARKS',  type=int, default=33)
 parser.add_argument('--N_HAND_LANDMARKS',  type=int, default=21)
-parser.add_argument('--number_of_cores',  type=int, default=1)#multiprocessing.cpu_count())
+parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count())
 parser.add_argument('--clear_dir',  type=bool, default=False)
 
 
@@ -110,7 +110,11 @@ def get_holistic_keypoints(
     holistic = mp_holistic.Holistic(static_image_mode=False, model_complexity=2)
     pose_landmarks = [x for x in mp_holistic.PoseLandmark]
     hand_landmarks = [x for x in mp_holistic.HandLandmark]
-
+    # ['face_' + format(i, '03') for i in range(468)] +\
+    names = [str(x) for x in pose_landmarks] + \
+            ['Left_' + str(x) for x in hand_landmarks] + \
+            ['Right_' + str(x) for x in hand_landmarks]  + \
+            ['World_' + str(x) for x in pose_landmarks]
     keypoints = []
     confs = []
     joint_names = []
@@ -119,16 +123,16 @@ def get_holistic_keypoints(
         frame = frames[f, :, :, :]
         results = holistic.process(frame)
 
-        names = [str(x) for x in pose_landmarks] + ['face_' + format(i,'03') for i in range(468)] + ['Left_' + str(x) for x in hand_landmarks]\
-                + ['Right_' + str(x) for x in hand_landmarks]  + ['World_' + str(x) for x in pose_landmarks]
+
 
         body_data, body_conf = process_body_landmarks(
             results.pose_landmarks, args.N_BODY_LANDMARKS, pose_landmarks
         )
+        """
         face_data, face_conf = process_other_landmarks(
             results.face_landmarks, args.N_FACE_LANDMARKS, None
         )
-
+        """
         lh_data, lh_conf = process_other_landmarks(
             results.left_hand_landmarks, args.N_HAND_LANDMARKS, hand_landmarks
         )
@@ -145,8 +149,8 @@ def get_holistic_keypoints(
         plt.plot(lh_data[:, 0] * frame.shape[1], lh_data[:, 1] * frame.shape[0], 'c.')
         plt.show()
         """
-        data = np.concatenate([body_data, lh_data, rh_data,face_data,pw_data])
-        conf = np.concatenate([body_conf, lh_conf, rh_conf,face_conf,pw_conf])
+        data = np.concatenate([body_data, lh_data, rh_data,pw_data])
+        conf = np.concatenate([body_conf, lh_conf, rh_conf,pw_conf])
 
 
         keypoints.append(data)
