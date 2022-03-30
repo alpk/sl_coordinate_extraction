@@ -155,7 +155,7 @@ def get_holistic_keypoints(
 
         keypoints.append(data)
         confs.append(conf)
-        joint_names.append(names)
+        joint_names = names
 
     # TODO: Reuse the same object when this issue is fixed: https://github.com/google/mediapipe/issues/2152
     holistic.close()
@@ -164,7 +164,6 @@ def get_holistic_keypoints(
 
     keypoints = np.stack(keypoints)
     confs = np.stack(confs)
-    joint_names = np.stack(joint_names)
     return keypoints, confs, joint_names
 
 
