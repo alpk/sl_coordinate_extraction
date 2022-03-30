@@ -168,8 +168,8 @@ def get_holistic_keypoints(
     return keypoints, confs, joint_names
 
 
-def gen_keypoints_for_frames(frames, save_path,args):
-    pose_kps, pose_confs, joint_names = get_holistic_keypoints(frames,args)
+def gen_keypoints_for_frames(frames, save_path, args):
+    pose_kps, pose_confs, joint_names = get_holistic_keypoints(frames, args)
 
     d = {"keypoints": pose_kps, "confidences": pose_confs, "joint_names":joint_names}
 
@@ -298,14 +298,14 @@ if __name__ == "__main__":
     if args.use_videos:
         Parallel(n_jobs=args.number_of_cores, backend="loky")(
             delayed(gen_keypoints_for_video)(path, save_path, args)
-            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout)
+            for path, save_path in tqdm(zip(file_paths, save_paths))
         )
     else:
         if args.number_of_cores > 1:
             Parallel(n_jobs=args.number_of_cores, backend="loky")(
                 delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg", "*.png"], args)
-                for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout))
+                for path, save_path in tqdm(zip(file_paths, save_paths)))
         else:
-            for path, save_path in tqdm(zip(file_paths, save_paths), file=sys.stdout):
+            for path, save_path in tqdm(zip(file_paths, save_paths)):
                 gen_keypoints_for_folder(path, save_path, ["*.jpg","*.png"], args)
 
