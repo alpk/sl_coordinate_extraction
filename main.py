@@ -27,8 +27,8 @@ mp_holistic = mp.solutions.holistic
 
 parser = argparse.ArgumentParser(description='Process a dataset to extract coordinates.')
 parser.add_argument('--dataset_name',  type=str, default='CSL')
-parser.add_argument('--base_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/frames/")
-parser.add_argument('--save_path',  type=str, default="/media/warp/Databases/sign_language_recognition/raw_datasets/isolated/CSLR/skeleton_mediapipe/")
+parser.add_argument('--base_path',  type=str, default="/media/hdd1/data/bsign22k/frames/")
+parser.add_argument('--save_path',  type=str, default="/media/ssd1/data/bsign22k/skeleton-mediapipe/")
 parser.add_argument('--use_videos',  type=bool, default=False)
 parser.add_argument('--color_depth_same_folder',  type=bool, default=False)
 parser.add_argument('--folder_order',  type=str, default='class_sign')
@@ -37,6 +37,7 @@ parser.add_argument('--N_BODY_LANDMARKS',  type=int, default=33)
 parser.add_argument('--N_HAND_LANDMARKS',  type=int, default=21)
 parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count())
 parser.add_argument('--clear_dir',  type=bool, default=False)
+parser.add_argument('--randomize_order',  type=bool, default=True)
 
 
 mediapipe_body_names = []
@@ -169,13 +170,10 @@ def get_holistic_keypoints(
 
 def gen_keypoints_for_frames(frames, save_path,args):
     pose_kps, pose_confs, joint_names = get_holistic_keypoints(frames,args)
-    body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)
 
-    confs = np.concatenate([pose_confs[:, :33], pose_confs[:, 501:]], axis=1)
+    d = {"keypoints": pose_kps, "confidences": pose_confs, "joint_names":joint_names}
 
-    d = {"keypoints": body_kps, "confidences": confs, "joint_names":joint_names}
-
-    with open(save_path + ".pkl", "wb") as f:
+    with open(save_path + ".pickle", "wb") as f:
         pickle.dump(d, f, protocol=4)
 
 
@@ -278,13 +276,15 @@ if __name__ == "__main__":
     if args.folder_order in 'class_sign':
 
         rand_list = os.listdir(args.base_path)
-        random.shuffle(rand_list)
+        if args.randomize_order:
+            random.shuffle(rand_list)
 
         for cls in rand_list:
             os.makedirs(os.path.join(args.save_path, cls), exist_ok=True)
 
             file_list = os.listdir(args.base_path + cls)
-            random.shuffle(file_list)
+            if args.randomize_order:
+                random.shuffle(file_list)
             for file in file_list:
                 # if "color" in file:
                 if not os.path.isfile(
