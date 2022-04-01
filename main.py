@@ -32,12 +32,13 @@ parser.add_argument('--save_path',  type=str, default="/media/ssd1/data/bsign22k
 parser.add_argument('--use_videos',  type=bool, default=False)
 parser.add_argument('--color_depth_same_folder',  type=bool, default=False)
 parser.add_argument('--folder_order',  type=str, default='class_sign')
-parser.add_argument('--N_FACE_LANDMARKS',  type=int, default=468)
-parser.add_argument('--N_BODY_LANDMARKS',  type=int, default=33)
-parser.add_argument('--N_HAND_LANDMARKS',  type=int, default=21)
-parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count())
+parser.add_argument('--get_face_landmarks',  type=bool, default=False)
+parser.add_argument('--get_pose_landmarks',  type=bool, default=True)
+parser.add_argument('--get_hand_landmarks',  type=bool, default=True)
+parser.add_argument('--get_3Dpose_landmarks',  type=bool, default=True)
+parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count()//2)
 parser.add_argument('--clear_dir',  type=bool, default=False)
-parser.add_argument('--randomize_order',  type=bool, default=True)
+parser.add_argument('--randomize_order',  type=bool, default=False)
 
 
 mediapipe_body_names = []
@@ -59,119 +60,105 @@ class Counter(object):
         return self.val.value
 
 
-def process_body_landmarks(component, n_points, landmark_name=None):
-    kps = np.zeros((n_points, 3))
-    conf = np.zeros(n_points)
-    if component is not None:
-        if landmark_name is None:
-            landmarks = component.landmark
-            kps = np.array([[p.x, p.y, p.z] for p in landmarks])
-            conf = np.array([p.visibility for p in landmarks])
-        else:
-            landmarks = component.landmark
-            kps = []
-            conf = []
-            for ln in landmark_name:
-                p = landmarks[ln]
-                kps.append(np.array([p.x, p.y, p.z]))
-                conf.append(np.array(p.visibility))
-            kps = np.array(kps)
-            conf = np.array(conf)
-    return kps, conf
+def process_landmarks(results, mp_holistic, args):
+    T = len(results)
+    keypoints = {'pose':{},'face':{}, 'hand_left':{}, 'hand_right':{}, 'pose_world':{}}
+    confidence = {'pose':{}, 'face':{}, 'hand_left':{}, 'hand_right':{}, 'pose_world':{}}
+    if T != 0:
+        if args.get_pose_landmarks:
+            for ln in mp_holistic.PoseLandmark:
+                keypoints['pose'][ln] =  np.zeros((T, 3),float)
+                confidence['pose'][ln] = np.zeros((T, 1),float)
+                for t in range(T):
+                    if results[t].pose_landmarks is not None:
+                        keypoints['pose'][ln][t,:] = np.array([results[t].pose_landmarks.landmark[ln].x,
+                                                               results[t].pose_landmarks.landmark[ln].y,
+                                                               results[t].pose_landmarks.landmark[ln].z])
+                        confidence['pose'][ln][t] = results[t].pose_landmarks.landmark[ln].visibility
+
+        if args.get_face_landmarks:
+            face_landmarks = ['face_landmark_'+ format(x,'03') for x in range(468)]
+            for ln in range(468):
+                keypoints['face'][face_landmarks[ln]] = np.zeros((T, 3), float)
+                confidence['face'][face_landmarks[ln]] = np.zeros((T, 1), float)
+                for t in range(T):
+                    if results[t].face_landmarks is not None:
+                        keypoints['face'][face_landmarks[ln]][t, :] = np.array([results[t].face_landmarks.landmark[ln].x,
+                                                                results[t].face_landmarks.landmark[ln].y,
+                                                                results[t].face_landmarks.landmark[ln].z])
+                        confidence['face'][face_landmarks[ln]][t] = 1
+
+        if args.get_hand_landmarks:
+            for ln in mp_holistic.HandLandmark:
+                keypoints['hand_left'][ln] = np.zeros((T, 3), float)
+                confidence['hand_left'][ln] = np.zeros((T, 1), float)
+                keypoints['hand_right'][ln] = np.zeros((T, 3), float)
+                confidence['hand_right'][ln] = np.zeros((T, 1), float)
+                for t in range(T):
+                    if results[t].left_hand_landmarks is not None:
+                        keypoints['hand_left'][ln][t, :] = np.array([results[t].left_hand_landmarks.landmark[ln].x,
+                                                                results[t].left_hand_landmarks.landmark[ln].y,
+                                                                results[t].left_hand_landmarks.landmark[ln].z])
+                        confidence['hand_left'][ln][t] = 1
+
+                    if results[t].right_hand_landmarks is not None:
+                        keypoints['hand_right'][ln][t, :] = np.array([results[t].right_hand_landmarks.landmark[ln].x,
+                                                                results[t].right_hand_landmarks.landmark[ln].y,
+                                                                results[t].right_hand_landmarks.landmark[ln].z])
+                        confidence['hand_right'][ln][t] = 1
+        if args.get_3Dpose_landmarks:
+            for ln in mp_holistic.PoseLandmark:
+                keypoints['pose_world'][ln] = np.zeros((T, 3), float)
+                confidence['pose_world'][ln] = np.zeros((T, 1), float)
+                for t in range(T):
+                    if results[t].pose_world_landmarks is not None:
+                        keypoints['pose_world'][ln][t, :] = np.array([results[t].pose_world_landmarks.landmark[ln].x,
+                                                                results[t].pose_world_landmarks.landmark[ln].y,
+                                                                results[t].pose_world_landmarks.landmark[ln].z])
+                        confidence['pose_world'][ln][t] = results[t].pose_world_landmarks.landmark[ln].visibility
+    return keypoints, confidence
 
 
-def process_other_landmarks(component, n_points, landmark_name=None):
-    kps = np.zeros((n_points, 3))
-    conf = np.zeros(n_points)
-    if component is not None:
-        if landmark_name is None:
-            landmarks = component.landmark
-            kps = np.array([[p.x, p.y, p.z] for p in landmarks])
-            conf = np.ones(n_points)
-        else:
-            landmarks = component.landmark
-            kps = []
-            for ln in landmark_name:
-                p = landmarks[ln]
-                kps.append(np.array([p.x, p.y, p.z]))
-            kps = np.array(kps)
-            conf = np.ones(n_points)
+
+openpose_keys = ['nose', 'neck', 'right_shoulder', 'right_elbow', 'right_wrist',
+                 'left_shoulder', 'left_elbow', 'left_wrist', 'middle_hip',
+                 'right_hip', 'right_knee', 'right_ankle', 'left_hip', 'left_knee',
+                 'left_ankle', 'right_eye', 'left_eye', 'right_ear', 'left_ear',
+                 'left_big_toe', 'left_small_toe', 'left_heel', 'right_big_toe',
+                 'right_small_toe', 'right_heel']
+body_keys = ['lunate_bone', 'thumb_1', 'thumb_2', 'thumb_3', 'thumb_4',
+             'index_finger_5', 'index_finger_6', 'index_finger_7', 'index_finger_8',
+             'middle_finger_9', 'middle_finger_10', 'middle_finger_11',
+             'middle_finger_12', 'ring_finger_13', 'ring_finger_14', 'ring_finger_15',
+             'ring_finger_16', 'little_finger_17', 'little_finger_18', 'little_finger_19',
+             'little_finger_20']
 
 
-    return kps, conf
-
-
-def get_holistic_keypoints(
-        frames,args
-):
+def get_holistic_keypoints(frames, args):
     """
     For videos, it's optimal to create with `static_image_mode=False` for each video.
     https://google.github.io/mediapipe/solutions/holistic.html#static_image_mode
     """
-    holistic = mp_holistic.Holistic(static_image_mode=False, model_complexity=2)
-    pose_landmarks = [x for x in mp_holistic.PoseLandmark]
-    hand_landmarks = [x for x in mp_holistic.HandLandmark]
-    # ['face_' + format(i, '03') for i in range(468)] +\
-    names = [str(x) for x in pose_landmarks] + \
-            ['Left_' + str(x) for x in hand_landmarks] + \
-            ['Right_' + str(x) for x in hand_landmarks]  + \
-            ['World_' + str(x) for x in pose_landmarks]
-    keypoints = []
-    confs = []
-    joint_names = []
 
+    holistic = mp_holistic.Holistic(static_image_mode=False, model_complexity=2)
+
+    results = []
     for f in range(frames.shape[0]):
         frame = frames[f, :, :, :]
-        results = holistic.process(frame)
-
-
-
-        body_data, body_conf = process_body_landmarks(
-            results.pose_landmarks, args.N_BODY_LANDMARKS, pose_landmarks
-        )
-        """
-        face_data, face_conf = process_other_landmarks(
-            results.face_landmarks, args.N_FACE_LANDMARKS, None
-        )
-        """
-        lh_data, lh_conf = process_other_landmarks(
-            results.left_hand_landmarks, args.N_HAND_LANDMARKS, hand_landmarks
-        )
-        rh_data, rh_conf = process_other_landmarks(
-            results.right_hand_landmarks, args.N_HAND_LANDMARKS, hand_landmarks
-        )
-        pw_data, pw_conf = process_body_landmarks(
-            results.pose_world_landmarks, args.N_BODY_LANDMARKS, pose_landmarks
-        )
-        """
-        plt.imshow(frame)
-        plt.plot(body_data[:,0]*frame.shape[1],body_data[:,1]*frame.shape[0],'r.')
-        plt.plot(rh_data[:, 0] * frame.shape[1], rh_data[:, 1] * frame.shape[0], 'b.')
-        plt.plot(lh_data[:, 0] * frame.shape[1], lh_data[:, 1] * frame.shape[0], 'c.')
-        plt.show()
-        """
-        data = np.concatenate([body_data, lh_data, rh_data,pw_data])
-        conf = np.concatenate([body_conf, lh_conf, rh_conf,pw_conf])
-
-
-        keypoints.append(data)
-        confs.append(conf)
-        joint_names = names
-
-    # TODO: Reuse the same object when this issue is fixed: https://github.com/google/mediapipe/issues/2152
+        results.append(holistic.process(frame))
     holistic.close()
     del holistic
     gc.collect()
+    keypoints, confidence = process_landmarks(results, mp_holistic, args)
 
-    keypoints = np.stack(keypoints)
-    confs = np.stack(confs)
-    return keypoints, confs, joint_names
+    return keypoints, confidence
+
 
 
 def gen_keypoints_for_frames(frames, save_path, args):
-    pose_kps, pose_confs, joint_names = get_holistic_keypoints(frames, args)
+    pose_kps, pose_confs = get_holistic_keypoints(frames, args )
 
-    d = {"keypoints": pose_kps, "confidences": pose_confs, "joint_names":joint_names}
+    d = {"keypoints": pose_kps, "confidences": pose_confs}
 
     with open(save_path + ".pickle", "wb") as f:
         pickle.dump(d, f, protocol=4)
@@ -275,34 +262,34 @@ if __name__ == "__main__":
     save_paths = []
     if args.folder_order in 'class_sign':
 
-        rand_list = os.listdir(args.base_path)
+        rand_list = sorted(os.listdir(args.base_path))
         if args.randomize_order:
             random.shuffle(rand_list)
 
         for cls in rand_list:
             os.makedirs(os.path.join(args.save_path, cls), exist_ok=True)
 
-            file_list = os.listdir(args.base_path + cls)
+            file_list = sorted(os.listdir(args.base_path + cls))
             if args.randomize_order:
                 random.shuffle(file_list)
             for file in file_list:
                 # if "color" in file:
-                if not os.path.isfile(
-                        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
-                    file_paths.append(os.path.join(args.base_path, cls, file))
-                    save_paths.append(
-                        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")))
+                #if not os.path.isfile(
+                #        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
+                file_paths.append(os.path.join(args.base_path, cls, file))
+                save_paths.append(
+                    os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")))
     else:
         logging.exception('Unsupported dataset folder order')
 
     if args.use_videos:
-        Parallel(n_jobs=args.number_of_cores, backend="loky")(
+        Parallel(n_jobs=args.number_of_cores)(
             delayed(gen_keypoints_for_video)(path, save_path, args)
             for path, save_path in tqdm(zip(file_paths, save_paths))
         )
     else:
         if args.number_of_cores > 1:
-            Parallel(n_jobs=args.number_of_cores, backend="loky")(
+            Parallel(n_jobs=args.number_of_cores)(
                 delayed(gen_keypoints_for_folder)(path, save_path, ["*.jpg", "*.png"], args)
                 for path, save_path in tqdm(zip(file_paths, save_paths)))
         else:
