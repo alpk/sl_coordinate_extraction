@@ -277,9 +277,9 @@ if __name__ == "__main__":
                 # if "color" in file:
                 if not os.path.isfile(
                         os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")) + '.pkl'):
-                file_paths.append(os.path.join(args.base_path, cls, file))
-                save_paths.append(
-                    os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")))
+                    file_paths.append(os.path.join(args.base_path, cls, file))
+                    save_paths.append(
+                        os.path.join(args.save_path, cls, file.replace(".avi", "").replace("_color", "")))
     else:
         logging.exception('Unsupported dataset folder order')
 
