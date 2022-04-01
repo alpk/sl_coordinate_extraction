@@ -12,7 +12,7 @@ srun -N1 -n1 /truba/home/akindiroglu/Workspace/Libs/pytorch_nightly/bin/python m
             --base_path /truba_scratch/akindiroglu/data/bsign22k/frames/ \
             --save_path /truba_scratch/akindiroglu/data/bsign22k/skeleton_mediapipe/ \
             --number_of_cores 1 \
-            --randomize_order False \
-            --clear_dir False &
+            --randomize_order 0 \
+            --clear_dir 0 &
 wait
 
