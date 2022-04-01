@@ -177,7 +177,7 @@ def load_frames_from_video(video_path):
     if np.sum(frames[0]) == 0:
         del frames[0]
     vidcap.release()
-    print(video_path, ': ', len(frames),flush=True)
+    #print(video_path, ': ', len(frames),flush=True)
     # cv2.destroyAllWindows()
     return np.asarray(frames)
 
@@ -187,6 +187,7 @@ def load_frames_from_folder(frames_folder, patterns=["*.jpg"]):
     for pattern in patterns:
         images.extend(glob(f"{frames_folder}/{pattern}"))
     images = natsorted(list(set(images)))  # remove dupes
+    print(images, ': ', len(images), flush=True)
     if not images:
         exit(f"ERROR: No frames in folder: {frames_folder}")
 
