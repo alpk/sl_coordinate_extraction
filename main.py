@@ -187,7 +187,7 @@ def load_frames_from_folder(frames_folder, patterns=["*.jpg"]):
     for pattern in patterns:
         images.extend(glob(f"{frames_folder}/{pattern}"))
     images = natsorted(list(set(images)))  # remove dupes
-    print(images, ': ', len(images), flush=True)
+    print(frames_folder, ': ', len(images), flush=True)
     if not images:
         exit(f"ERROR: No frames in folder: {frames_folder}")
 
