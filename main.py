@@ -177,7 +177,7 @@ def load_frames_from_video(video_path):
     if np.sum(frames[0]) == 0:
         del frames[0]
     vidcap.release()
-    print(video_path, ': ', len(frames))
+    print(video_path, ': ', len(frames),flush=True)
     # cv2.destroyAllWindows()
     return np.asarray(frames)
 
