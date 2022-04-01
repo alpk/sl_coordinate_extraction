@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition=debug
+#SBATCH --partition=mid2
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=1
 # #SBATCH --mem-per-cpu=10G
