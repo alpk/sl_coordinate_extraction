@@ -38,7 +38,7 @@ parser.add_argument('--get_hand_landmarks',  type=bool, default=True)
 parser.add_argument('--get_3Dpose_landmarks',  type=bool, default=True)
 parser.add_argument('--number_of_cores',  type=int, default=multiprocessing.cpu_count()//2)
 parser.add_argument('--clear_dir',  type=bool, default=False)
-parser.add_argument('--randomize_order',  type=bool, default=True)
+parser.add_argument('--randomize_order',  type=bool, default=False)
 
 
 mediapipe_body_names = []
