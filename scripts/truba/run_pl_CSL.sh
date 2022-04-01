@@ -9,20 +9,20 @@
 #SBATCH --error=slurm_out/test-%j.err
 
 srun -N1 -n1 /truba/home/akindiroglu/Workspace/Libs/pytorch_nightly/bin/python main.py \
-            --base_path /truba_scratch/akindiroglu/data/bsign22k/frames/ \
-            --save_path /truba_scratch/akindiroglu/data/bsign22k/skeleton_mediapipe/ \
+            --base_path /truba_scratch/akindiroglu/data/CSL/frames/ \
+            --save_path /truba_scratch/akindiroglu/data/CSL/skeleton_mediapipe/ \
             --number_of_cores 1  &
 srun -N1 -n1 /truba/home/akindiroglu/Workspace/Libs/pytorch_nightly/bin/python main.py \
-            --base_path /truba_scratch/akindiroglu/data/bsign22k/frames/ \
-            --save_path /truba_scratch/akindiroglu/data/bsign22k/skeleton_mediapipe/ \
+            --base_path /truba_scratch/akindiroglu/data/CSL/frames/ \
+            --save_path /truba_scratch/akindiroglu/data/CSL//skeleton_mediapipe/ \
             --number_of_cores 1  &
 srun -N1 -n1 /truba/home/akindiroglu/Workspace/Libs/pytorch_nightly/bin/python main.py \
-            --base_path /truba_scratch/akindiroglu/data/bsign22k/frames/ \
-            --save_path /truba_scratch/akindiroglu/data/bsign22k/skeleton_mediapipe/ \
+            --base_path /truba_scratch/akindiroglu/data/CSL/frames/ \
+            --save_path /truba_scratch/akindiroglu/data/CSL//skeleton_mediapipe/ \
             --number_of_cores 1  &
 srun -N1 -n1 /truba/home/akindiroglu/Workspace/Libs/pytorch_nightly/bin/python main.py \
-            --base_path /truba_scratch/akindiroglu/data/bsign22k/frames/ \
-            --save_path /truba_scratch/akindiroglu/data/bsign22k/skeleton_mediapipe/ \
+            --base_path /truba_scratch/akindiroglu/data/CSL/frames/ \
+            --save_path /truba_scratch/akindiroglu/data/CSL//skeleton_mediapipe/ \
             --number_of_cores 1  &
 
 wait
